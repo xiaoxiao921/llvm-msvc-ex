@@ -24,7 +24,7 @@ jobs:
       run: |
         $vsPath = &vswhere -version "[17.14,17.15)" -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
         echo "VSINSTALLDIR=$vsPath" >> $env:GITHUB_ENV
-        echo "PATH=$vsPath\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64;$env:PATH" >> $env:GITHUB_ENV
+        echo "PATH=$vsPath\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64;$vsPath\MSBuild\Current\Bin\amd64;$env:PATH" >> $env:GITHUB_ENV
 
     - name: Build stage 1 - RelWithDebInfo (stock toolset)
       run: |
