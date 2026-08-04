@@ -1,0 +1,62 @@
+name: windows-llvm-msvc-build
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+
+    - name: Checkout Repo
+      uses: actions/checkout@v3
+      with:
+          path: llvm-msvc
+          submodules: 'recursive'
+
+    - name: Install vswhere
+      run: |
+        choco install vswhere --version 2.8.4 --force
+
+    - name: Setup MSVC
+      run: |
+        $vsPath = &vswhere -version "[17.14,17.15)" -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+        echo "VSINSTALLDIR=$vsPath" >> $env:GITHUB_ENV
+        echo "PATH=$vsPath\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64;$env:PATH" >> $env:GITHUB_ENV
+
+    - name: Build stage 1 - RelWithDebInfo (stock toolset)
+      run: |
+        mkdir build-RelWithDebInfo-64
+        pushd build-RelWithDebInfo-64
+        cmake .. -G "Visual Studio 17 2022" -A X64 -DCMAKE_CXX_FLAGS="/utf-8" -DCMAKE_C_FLAGS="/utf-8" -DLLVM_ENABLE_RPMALLOC=ON -DLLDB_ENABLE_PYTHON=OFF -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_ENABLE_PROJECTS="clang;lld;lldb" -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}\install" -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_ZLIB=OFF -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_OBFUSCATION_LINK_INTO_TOOLS=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -DLLVM_USE_CRT_RELEASE=MT ..\llvm-msvc\llvm
+        msbuild /m -p:Configuration=RelWithDebInfo INSTALL.vcxproj
+        popd
+
+    - name: Build stage 2 - self-hosted LLVM-MSVC_v143 toolset
+      run: |
+        mkdir build-release-64-clang
+        pushd build-release-64-clang
+        cmake .. -G "Visual Studio 17 2022" -T "LLVM-MSVC_v143" -A X64 -DCMAKE_CXX_FLAGS="/utf-8" -DCMAKE_C_FLAGS="/utf-8" -DLLVM_ENABLE_RPMALLOC=ON -DLLDB_ENABLE_PYTHON=OFF -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_ENABLE_PROJECTS="clang;lld;lldb;compiler-rt" -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}\install" -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_ZLIB=OFF -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_OBFUSCATION_LINK_INTO_TOOLS=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -DLLVM_USE_CRT_RELEASE=MT ..\llvm-msvc\llvm
+        msbuild /m -p:Configuration=RelWithDebInfo INSTALL.vcxproj
+        popd
+
+    - name: Package llvm
+      run: |
+        7z a -v1500m windows-llvm-msvc.zip "${{ github.workspace }}\install"
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-llvm-msvc
+        path: windows-llvm-msvc.zip.00*
+
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: ${{ startsWith(github.ref, 'refs/tags/') }}
+      with:
+        prerelease: ${{ !startsWith(github.ref, 'refs/tags/v') || contains(github.ref, '-pre') }}
+        files: windows-llvm-msvc.zip.00*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
