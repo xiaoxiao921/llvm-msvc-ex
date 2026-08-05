@@ -21,7 +21,11 @@ jobs:
       with:
         arch: amd64
         toolset: 14.44
-        sdk: 10.0.26100.7705
+
+    - name: List installed Windows SDKs
+      shell: pwsh
+      run: |
+        Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Include" | Select-Object Name
 
     - name: Build llvm
       run: |
