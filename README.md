@@ -109,26 +109,26 @@ Personally supported and tested extensively through GitHub Action CI:
 
 ### Build Command
 
-```batch
+```ps1
 mkdir build
 
 pushd build
 
-cmake .. -G Ninja ^
-  -DCMAKE_CXX_FLAGS="/utf-8" ^
-  -DCMAKE_C_FLAGS="/utf-8" ^
-  -DLLVM_USE_RPMALLOC=ON ^
-  -DLLDB_ENABLE_PYTHON=OFF ^
-  -DLLVM_INCLUDE_TESTS=OFF ^
-  -DLLVM_INCLUDE_EXAMPLES=OFF ^
-  -DLLVM_INCLUDE_BENCHMARKS=OFF ^
-  -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;lld;lldb;compiler-rt" ^
-  -DCMAKE_INSTALL_PREFIX="C:/install" ^ # Where LLVM will be installed when the cmake --install command will be ran by the user.
-  -DLLVM_ENABLE_LIBXML2=OFF ^
-  -DLLVM_ENABLE_ZLIB=OFF ^
-  -DLLVM_TARGETS_TO_BUILD=X86 ^
-  -DLLVM_OBFUSCATION_LINK_INTO_TOOLS=ON ^
-  -DCMAKE_BUILD_TYPE=RelWithDebInfo ^
+cmake .. -G Ninja `
+  -DCMAKE_CXX_FLAGS="/utf-8" `
+  -DCMAKE_C_FLAGS="/utf-8" `
+  -DLLVM_USE_RPMALLOC=ON `
+  -DLLDB_ENABLE_PYTHON=OFF `
+  -DLLVM_INCLUDE_TESTS=OFF `
+  -DLLVM_INCLUDE_EXAMPLES=OFF `
+  -DLLVM_INCLUDE_BENCHMARKS=OFF `
+  -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;lld;lldb;compiler-rt" `
+  -DCMAKE_INSTALL_PREFIX="C:/LLVM" ` # Where LLVM will be installed when the cmake --install command will be ran by the user.
+  -DLLVM_ENABLE_LIBXML2=OFF `
+  -DLLVM_ENABLE_ZLIB=OFF `
+  -DLLVM_TARGETS_TO_BUILD=X86 `
+  -DLLVM_OBFUSCATION_LINK_INTO_TOOLS=ON `
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo `
   -DLLVM_USE_CRT_RELEASE=MT
 
 cmake --build . --config RelWithDebInfo --parallel --verbose
@@ -400,23 +400,33 @@ Check out [awesome-llvm-security](https://github.com/gmh5225/awesome-llvm-securi
 
 **只需一步**即可完成构建：
 
-```batch
+```ps1
 mkdir build
-cd build
-cmake .. -G "Visual Studio 17 2022" -A x64 ^
-  -DLLVM_ENABLE_PROJECTS="clang;lld;lldb;compiler-rt" ^
-  -DLLVM_ENABLE_RPMALLOC=ON ^
-  -DLLDB_ENABLE_PYTHON=OFF ^
-  -DLLVM_INCLUDE_TESTS=OFF ^
-  -DLLVM_INCLUDE_EXAMPLES=OFF ^
-  -DLLVM_ENABLE_LIBXML2=OFF ^
-  -DLLVM_ENABLE_ZLIB=OFF ^
-  -DLLVM_TARGETS_TO_BUILD=X86 ^
-  -DLLVM_OBFUSCATION_LINK_INTO_TOOLS=ON ^
-  -DCMAKE_BUILD_TYPE=RelWithDebInfo ^
+
+pushd build
+
+cmake .. -G Ninja `
+  -DCMAKE_CXX_FLAGS="/utf-8" `
+  -DCMAKE_C_FLAGS="/utf-8" `
+  -DLLVM_USE_RPMALLOC=ON `
+  -DLLDB_ENABLE_PYTHON=OFF `
+  -DLLVM_INCLUDE_TESTS=OFF `
+  -DLLVM_INCLUDE_EXAMPLES=OFF `
+  -DLLVM_INCLUDE_BENCHMARKS=OFF `
+  -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;lld;lldb;compiler-rt" `
+  -DCMAKE_INSTALL_PREFIX="C:/LLVM" ` # Where LLVM will be installed when the cmake --install command will be ran by the user.
+  -DLLVM_ENABLE_LIBXML2=OFF `
+  -DLLVM_ENABLE_ZLIB=OFF `
+  -DLLVM_TARGETS_TO_BUILD=X86 `
+  -DLLVM_OBFUSCATION_LINK_INTO_TOOLS=ON `
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo `
   -DLLVM_USE_CRT_RELEASE=MT
 
-msbuild /m -p:Configuration=RelWithDebInfo INSTALL.vcxproj
+cmake --build . --config RelWithDebInfo --parallel --verbose
+
+cmake --install . --config RelWithDebInfo
+
+popd
 ```
 
 > **注意：** `CMAKE_INSTALL_PREFIX` 未硬编码，默认使用构建目录，便于移植。
