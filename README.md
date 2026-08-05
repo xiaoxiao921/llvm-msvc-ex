@@ -100,7 +100,7 @@ Yes.
 
 ### Supported Build Environment
 
-Currently supported and tested:
+Personally supported and tested extensively through GitHub Action CI:
 
 - Visual Studio 2022 only
 - Windows SDK `10.0.26100`
@@ -109,17 +109,21 @@ Currently supported and tested:
 
 ### Build Command
 
-A **single** build step is required:
-
 ```batch
 mkdir build
-cd build
-cmake .. -G "Visual Studio 17 2022" -A x64 ^
-  -DLLVM_ENABLE_PROJECTS="clang;lld;lldb;compiler-rt" ^
-  -DLLVM_ENABLE_RPMALLOC=ON ^
+
+pushd build
+
+cmake .. -G Ninja ^
+  -DCMAKE_CXX_FLAGS="/utf-8" ^
+  -DCMAKE_C_FLAGS="/utf-8" ^
+  -DLLVM_USE_RPMALLOC=ON ^
   -DLLDB_ENABLE_PYTHON=OFF ^
   -DLLVM_INCLUDE_TESTS=OFF ^
   -DLLVM_INCLUDE_EXAMPLES=OFF ^
+  -DLLVM_INCLUDE_BENCHMARKS=OFF ^
+  -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;lld;lldb;compiler-rt" ^
+  -DCMAKE_INSTALL_PREFIX="C:/install" ^ # Where LLVM will be installed when the cmake --install command will be ran by the user.
   -DLLVM_ENABLE_LIBXML2=OFF ^
   -DLLVM_ENABLE_ZLIB=OFF ^
   -DLLVM_TARGETS_TO_BUILD=X86 ^
@@ -127,10 +131,12 @@ cmake .. -G "Visual Studio 17 2022" -A x64 ^
   -DCMAKE_BUILD_TYPE=RelWithDebInfo ^
   -DLLVM_USE_CRT_RELEASE=MT
 
-msbuild /m -p:Configuration=RelWithDebInfo INSTALL.vcxproj
-```
+cmake --build . --config RelWithDebInfo --parallel --verbose
 
-> **Note:** `CMAKE_INSTALL_PREFIX` is not hardcoded; it defaults to the build directory for portability.
+cmake --install . --config RelWithDebInfo
+
+popd
+```
 
 ---
 
