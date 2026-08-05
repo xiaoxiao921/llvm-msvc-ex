@@ -1,4 +1,4 @@
-name: windows-llvm-msvc-build
+name: windows-llvm-msvc-ex-build
 permissions:
   contents: write
 
@@ -11,10 +11,11 @@ jobs:
     steps:
 
     - name: Checkout Repo
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
-          path: llvm-msvc
+          path: llvm-msvc-ex
           submodules: 'recursive'
+          fetch-depth: 0
 
     - name: Setup MSVC environment
       uses: ilammy/msvc-dev-cmd@v1
@@ -27,29 +28,74 @@ jobs:
       run: |
         Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Include" | Select-Object Name
 
-    - name: Build llvm
+    - name: Restore LLVM cache
+      id: restore-llvm
+      uses: actions/cache/restore@v4
+      with:
+        path: install
+        key: llvm-${{ hashFiles('llvm-msvc-ex/llvm/CMakeLists.txt', 'llvm-msvc-ex/llvm/cmake/**', 'llvm-msvc-ex/llvm/lib/**', 'llvm-msvc-ex/llvm/include/**', 'llvm-msvc-ex/llvm/tools/**', 'llvm-msvc-ex/clang/lib/**', 'llvm-msvc-ex/lld/**', 'llvm-msvc-ex/lldb/**', 'llvm-msvc-ex/compiler-rt/**') }}-msvc-x64-v1
+
+    - name: Build llvm (cache miss)
+      if: steps.restore-llvm.outputs.cache-hit != 'true'
+      shell: cmd
       run: |
         mkdir build-RelWithDebInfo-64
+        
         pushd build-RelWithDebInfo-64
-        cmake .. -G "Visual Studio 17 2022" -A X64 -DCMAKE_CXX_FLAGS="/utf-8" -DCMAKE_C_FLAGS="/utf-8" -DLLVM_ENABLE_RPMALLOC=ON -DLLDB_ENABLE_PYTHON=OFF -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_ENABLE_PROJECTS="clang;lld;lldb;compiler-rt" -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}\install" -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_ZLIB=OFF -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_OBFUSCATION_LINK_INTO_TOOLS=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -DLLVM_USE_CRT_RELEASE=MT ..\llvm-msvc\llvm
-        msbuild /m -p:Configuration=RelWithDebInfo INSTALL.vcxproj
+        
+        cmake ..\llvm-msvc-ex\llvm -G Ninja ^
+          -DCMAKE_CXX_FLAGS="/utf-8" ^
+          -DCMAKE_C_FLAGS="/utf-8" ^
+          -DLLVM_USE_RPMALLOC=ON ^
+          -DLLDB_ENABLE_PYTHON=OFF ^
+          -DLLVM_INCLUDE_TESTS=OFF ^
+          -DLLVM_INCLUDE_EXAMPLES=OFF ^
+          -DLLVM_INCLUDE_BENCHMARKS=OFF ^
+          -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;lld;lldb;compiler-rt" ^
+          -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}\install" ^
+          -DLLVM_ENABLE_LIBXML2=OFF ^
+          -DLLVM_ENABLE_ZLIB=OFF ^
+          -DLLVM_TARGETS_TO_BUILD=X86 ^
+          -DLLVM_OBFUSCATION_LINK_INTO_TOOLS=ON ^
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo ^
+          -DLLVM_USE_CRT_RELEASE=MT
+        
+        cmake --build . --config RelWithDebInfo --parallel --verbose
+
+        cmake --install . --config RelWithDebInfo
+        
         popd
+
+    - name: Save LLVM cache
+      if: steps.restore-llvm.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: install
+        key: llvm-${{ hashFiles('llvm-msvc-ex/llvm/CMakeLists.txt', 'llvm-msvc-ex/llvm/cmake/**', 'llvm-msvc-ex/llvm/lib/**', 'llvm-msvc-ex/llvm/include/**', 'llvm-msvc-ex/llvm/tools/**', 'llvm-msvc-ex/clang/lib/**', 'llvm-msvc-ex/lld/**', 'llvm-msvc-ex/lldb/**', 'llvm-msvc-ex/compiler-rt/**') }}-msvc-x64-v1
 
     - name: Package llvm
       run: |
-        7z a -v1500m windows-llvm-msvc.zip "${{ github.workspace }}\install"
+        7z a -v1500m windows-llvm-msvc-ex.zip "${{ github.workspace }}\install"
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: windows-llvm-msvc
-        path: windows-llvm-msvc.zip.00*
+        name: windows-llvm-msvc-ex
+        path: windows-llvm-msvc-ex.zip.00*
+        retention-days: 31
 
+    - name: Create Release Tag
+      id: release_tag
+      shell: pwsh
+      run: |
+        echo "tag=llvm-build-${{ github.run_number }}" >> $env:GITHUB_OUTPUT
+    
     - name: Release
       uses: softprops/action-gh-release@v1
-      if: ${{ startsWith(github.ref, 'refs/tags/') }}
       with:
-        prerelease: ${{ !startsWith(github.ref, 'refs/tags/v') || contains(github.ref, '-pre') }}
-        files: windows-llvm-msvc.zip.00*
+        tag_name: ${{ steps.release_tag.outputs.tag }}
+        name: LLVM MSVC Build ${{ github.run_number }}
+        prerelease: true
+        files: windows-llvm-msvc-ex.zip.00*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
